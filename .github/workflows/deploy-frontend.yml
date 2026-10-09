@@ -1,0 +1,55 @@
+name: Deploy frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/deploy-frontend.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: ${{ vars.BACKEND_API_BASE_URL != '' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Prepare frontend
+        env:
+          BACKEND_API_BASE_URL: ${{ vars.BACKEND_API_BASE_URL }}
+        run: |
+          if [ -z "$BACKEND_API_BASE_URL" ]; then
+            echo "::error::Set the BACKEND_API_BASE_URL repository variable to the deployed API base URL, ending in /api."
+            exit 1
+          fi
+          mkdir _site
+          cp -R frontend/. _site/
+          printf 'window.FINANCE_API_BASE_URL = "%s";\n' "${BACKEND_API_BASE_URL%/}" > _site/api-config.js
+
+      - name: Upload frontend
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy frontend
+        id: deployment
+        uses: actions/deploy-pages@v4

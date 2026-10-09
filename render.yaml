@@ -2,16 +2,12 @@ services:
   - type: web
     name: wealth-expense-intelligence
     runtime: docker
-    plan: starter
+    plan: free
     rootDir: .
     dockerfilePath: ./backend/personalfinancetracker/Dockerfile
     healthCheckPath: /health
     envVars:
       - key: DB_FILE
-        value: /var/data/financedb
+        value: /tmp/financedb
       - key: H2_CONSOLE_ENABLED
         value: "false"
-    disk:
-      name: finance-data
-      mountPath: /var/data
-      sizeGB: 1

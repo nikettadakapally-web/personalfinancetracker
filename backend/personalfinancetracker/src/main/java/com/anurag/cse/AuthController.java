@@ -1,5 +1,6 @@
 package com.anurag.cse;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
@@ -52,10 +53,12 @@ public class AuthController {
     private void validate(AuthRequest request, boolean registration) {
         if (request == null || request.email() == null || request.password() == null
                 || !EMAIL_PATTERN.matcher(request.email().trim()).matches()
-                || request.password().length() < 10 || request.password().length() > 72
-                || (registration && (request.name() == null || request.name().isBlank()))) {
+                || request.email().trim().length() > 254 || request.password().length() < 10
+                || request.password().getBytes(StandardCharsets.UTF_8).length > 72
+                || (registration && (request.name() == null || request.name().trim().isEmpty()
+                        || request.name().trim().length() > 100))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Enter a valid email, a password of 10-72 characters, and a name when registering.");
+                    "Enter a valid email, a password of at least 10 characters and no more than 72 UTF-8 bytes, and a name of up to 100 characters when registering.");
         }
     }
 

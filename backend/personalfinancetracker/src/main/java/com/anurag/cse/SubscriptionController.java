@@ -4,7 +4,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/subscriptions")
@@ -26,7 +30,10 @@ public class SubscriptionController {
     @PostMapping
     public Subscription createSubscription(@RequestHeader(value = "Authorization", required = false) String authorization,
                                            @RequestBody Subscription subscription) {
+        validate(subscription);
+        subscription.setFrequency(subscription.getFrequency().trim().toLowerCase(Locale.ROOT));
         subscription.setOwnerId(authService.requireUser(authorization).getId());
+        subscription.setId(null);
         return subscriptionRepository.save(subscription);
     }
 
@@ -53,5 +60,22 @@ public class SubscriptionController {
         }
         subscriptionRepository.deleteByIdAndOwnerId(id, ownerId);
         return ResponseEntity.noContent().build();
+    }
+
+    private void validate(Subscription subscription) {
+        if (subscription == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A subscription is required.");
+        }
+        ApiInputValidation.requireText(subscription.getName(), "Name", 120);
+        ApiInputValidation.requirePositiveAmount(subscription.getAmount(), "Amount");
+        ApiInputValidation.requireText(subscription.getFrequency(), "Frequency", 20);
+        if (!Set.of("daily", "day", "weekly", "week", "monthly", "month",
+                "quarterly", "quarter", "yearly", "annual", "annually", "year")
+                .contains(subscription.getFrequency().trim().toLowerCase(Locale.ROOT))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Frequency must be daily, weekly, monthly, quarterly, or yearly.");
+        }
+        ApiInputValidation.requireOptionalText(subscription.getCategory(), "Category", 80);
+        ApiInputValidation.requireOptionalText(subscription.getUsageRate(), "Usage rate", 80);
     }
 }

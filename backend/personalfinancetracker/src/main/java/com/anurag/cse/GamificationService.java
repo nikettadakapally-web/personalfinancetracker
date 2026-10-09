@@ -122,10 +122,11 @@ public class GamificationService {
             milestone.put("id", goal.getId());
             milestone.put("title", goal.getTitle());
             milestone.put("progress", target > 0 ? Math.min(100, Math.round(current / target * 100)) : 0);
-            milestone.put("monthlyContribution", monthlyContribution);
+            double goalContribution = remaining == 0 ? 0 : monthlyContribution;
+            milestone.put("monthlyContribution", goalContribution);
             milestone.put("estimatedCompletionDate", remaining == 0 ? today.toString()
-                    : monthlyContribution > 0
-                            ? YearMonth.from(today).plusMonths((long) Math.ceil(remaining / monthlyContribution))
+                    : goalContribution > 0
+                            ? YearMonth.from(today).plusMonths((long) Math.ceil(remaining / goalContribution))
                                     .atDay(1).toString()
                             : null);
             milestones.add(milestone);

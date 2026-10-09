@@ -5,6 +5,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/goals")
@@ -26,7 +28,9 @@ public class SavingGoalController {
     @PostMapping
     public SavingGoal createGoal(@RequestHeader(value = "Authorization", required = false) String authorization,
                                  @RequestBody SavingGoal goal) {
+        validate(goal);
         goal.setOwnerId(authService.requireUser(authorization).getId());
+        goal.setId(null);
         if (goal.getCurrentAmount() == null) {
             goal.setCurrentAmount(0.0);
         }
@@ -36,11 +40,17 @@ public class SavingGoalController {
     @PutMapping("/{id}/add-funds")
     public ResponseEntity<SavingGoal> addFunds(@RequestHeader(value = "Authorization", required = false) String authorization,
                                                 @PathVariable Long id, @RequestParam Double amount) {
-        Optional<SavingGoal> optionalGoal = goalRepository.findByIdAndOwnerId(id, authService.requireUser(authorization).getId());
+        ApiInputValidation.requirePositiveAmount(amount, "Amount");
+        Optional<SavingGoal> optionalGoal = goalRepository.findByIdAndOwnerId(id,
+                authService.requireUser(authorization).getId());
         if (optionalGoal.isPresent()) {
             SavingGoal goal = optionalGoal.get();
             double current = (goal.getCurrentAmount() != null) ? goal.getCurrentAmount() : 0.0;
-            goal.setCurrentAmount(current + amount);
+            double updatedAmount = current + amount;
+            if (!Double.isFinite(updatedAmount)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The resulting goal amount is too large.");
+            }
+            goal.setCurrentAmount(updatedAmount);
             return ResponseEntity.ok(goalRepository.save(goal));
         } else {
             return ResponseEntity.notFound().build();
@@ -56,5 +66,18 @@ public class SavingGoalController {
         }
         goalRepository.deleteByIdAndOwnerId(id, ownerId);
         return ResponseEntity.noContent().build();
+    }
+
+    private void validate(SavingGoal goal) {
+        if (goal == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A savings goal is required.");
+        }
+        ApiInputValidation.requireText(goal.getTitle(), "Title", 120);
+        ApiInputValidation.requirePositiveAmount(goal.getTargetAmount(), "Target amount");
+        if (goal.getCurrentAmount() == null) {
+            goal.setCurrentAmount(0.0);
+        }
+        ApiInputValidation.requireNonNegativeAmount(goal.getCurrentAmount(), "Current amount");
+        ApiInputValidation.requireOptionalText(goal.getCategory(), "Category", 80);
     }
 }

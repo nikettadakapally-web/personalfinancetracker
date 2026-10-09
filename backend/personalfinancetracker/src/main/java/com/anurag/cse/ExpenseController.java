@@ -1,10 +1,12 @@
 package com.anurag.cse;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 @RestController
@@ -27,7 +29,9 @@ public class ExpenseController {
     @PostMapping
     public Expense createExpense(@RequestHeader(value = "Authorization", required = false) String authorization,
                                  @RequestBody Expense expense) {
+        validate(expense);
         expense.setOwnerId(authService.requireUser(authorization).getId());
+        expense.setId(null);
         if (expense.getDate() == null) expense.setDate(java.time.LocalDate.now());
         return expenseRepository.save(expense);
     }
@@ -35,6 +39,7 @@ public class ExpenseController {
     @PutMapping("/{id}")
     public ResponseEntity<Expense> updateExpense(@RequestHeader(value = "Authorization", required = false) String authorization,
                                                   @PathVariable Long id, @RequestBody Expense updated) {
+        validate(updated);
         Long ownerId = authService.requireUser(authorization).getId();
         Optional<Expense> optionalExpense = expenseRepository.findByIdAndOwnerId(id, ownerId);
         if (optionalExpense.isPresent()) {
@@ -51,6 +56,21 @@ public class ExpenseController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    private void validate(Expense expense) {
+        if (expense == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "An expense is required.");
+        }
+        ApiInputValidation.requireText(expense.getTitle(), "Title", 120);
+        ApiInputValidation.requirePositiveAmount(expense.getAmount(), "Amount");
+        ApiInputValidation.requireText(expense.getCategory(), "Category", 80);
+        if (expense.getType() == null || !List.of("income", "expense")
+                .contains(expense.getType().trim().toLowerCase(Locale.ROOT))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Type must be income or expense.");
+        }
+        ApiInputValidation.requireOptionalText(expense.getPaymentMode(), "Payment mode", 50);
+        ApiInputValidation.requireOptionalText(expense.getNotes(), "Notes", 500);
     }
 
     @DeleteMapping("/{id}")

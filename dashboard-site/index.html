@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wealth & Expense Intelligence | Executive Financial Dashboard</title>
+  <meta name="description" content="Executive Personal Finance & Wealth Intelligence Platform with automated categorization, emergency runway calculator, tax optimization, and AI Advisor.">
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const isLocalDevelopment = window.location.hostname === 'localhost'
+      || window.location.hostname === '127.0.0.1'
+      || (window.location.protocol === 'http:' && window.location.port === '3000');
+    window.FINANCE_API_BASE_URL = isLocalDevelopment
+      ? `http://${window.location.hostname}:8081/api`
+      : '/api';
+  </script>
+</head>
+<body class="dark-mode">
+  <main class="auth-screen" id="authScreen" aria-labelledby="authTitle">
+    <section class="auth-panel">
+      <div class="auth-mark"><i data-lucide="landmark"></i></div>
+      <p class="auth-kicker">PERSONAL FINANCE</p>
+      <h1 id="authTitle">Your money, in focus.</h1>
+      <p class="auth-copy">Sign in to your private finance dashboard.</p>
+      <form id="authForm" class="auth-form">
+        <p class="auth-error" id="authError" role="alert" aria-live="polite"></p>
+        <div class="form-group auth-name-field" id="authNameField" hidden>
+          <label class="form-label" for="authName">Full name</label>
+          <input class="form-control" id="authName" name="name" autocomplete="name" maxlength="80">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="authEmail">Email address</label>
+          <input class="form-control" id="authEmail" name="email" type="email" autocomplete="email" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="authPassword">Password</label>
+          <input class="form-control" id="authPassword" name="password" type="password" autocomplete="current-password" minlength="10" maxlength="72" required>
+          <span class="auth-hint">Use at least 10 characters.</span>
+        </div>
+        <button class="btn btn-primary auth-submit" id="authSubmit" type="submit">Sign in</button>
+      </form>
+      <button class="auth-toggle" id="authModeToggle" type="button">Create a new account</button>
+    </section>
+  </main>
+
+  <div class="app-container" id="appContainer" hidden>
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="brand-section">
+        <div class="brand-logo-wrap">
+          <i data-lucide="shield-check" style="width: 28px; height: 28px; color: #10b981;"></i>
+        </div>
+        <div>
+          <h1 class="brand-title" id="welcomeTitle">Wealth & Expense Intelligence</h1>
+          <p class="brand-subtitle">
+            <span>Portfolio</span> • <span>Emergency Reserves</span> • <span>Tax Savings</span> • <span>AI Advisor</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <span id="signedInLabel" class="signed-in-label"></span>
+        <button id="logoutBtn" class="btn btn-secondary btn-icon-only" title="Sign out" aria-label="Sign out">
+          <i data-lucide="log-out"></i>
+        </button>
+        <button id="openPaymentRequestBtn" class="btn btn-secondary">
+          <i data-lucide="send"></i> Request Payment
+        </button>
+        <button id="openAddTxModalBtn" class="btn btn-secondary">
+          <i data-lucide="plus-circle"></i> Add Transaction
+        </button>
+        <button id="openAddGoalModalBtn" class="btn btn-secondary">
+          <i data-lucide="target"></i> Add Goal
+        </button>
+        <button id="openAddSubModalBtn" class="btn btn-secondary">
+          <i data-lucide="repeat"></i> Add Subscription
+        </button>
+        <button id="openReportModalBtn" class="btn btn-secondary">
+          <i data-lucide="file-text"></i> Audit Report
+        </button>
+        <button id="exportCsvBtn" class="btn btn-secondary btn-icon-only" title="Export CSV Data">
+          <i data-lucide="download"></i>
+        </button>
+        <button id="themeToggleBtn" class="btn btn-secondary btn-icon-only" title="Toggle Theme">
+          <i data-lucide="sun"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Executive Wealth & Financial Health Bar -->
+    <section class="executive-wealth-bar">
+      <!-- 1. Net Worth & Runway -->
+      <div class="wealth-item">
+        <div class="wealth-icon-box" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+          <i data-lucide="landmark"></i>
+        </div>
+        <div>
+          <div class="wealth-label">Liquid Assets & Reserves</div>
+          <div class="wealth-value" id="barLiquidAssets">—</div>
+          <div class="wealth-meta" id="barRunwayMeta">Add expenses to calculate your runway</div>
+          <button type="button" class="btn-sm btn-outline wealth-action-button" id="addWealthTransactionBtn">
+            <i data-lucide="plus"></i> Add transaction
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. Emergency Fund Health -->
+      <div class="wealth-item">
+        <div class="wealth-icon-box" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">
+          <i data-lucide="shield"></i>
+        </div>
+        <div>
+          <div class="wealth-label">Emergency Safety Reserve</div>
+          <div class="wealth-value" id="barEmergencyVal">Add an emergency goal</div>
+          <div class="wealth-progress-bg">
+            <div class="wealth-progress-fill" id="barEmergencyProgress" style="width: 0%; background: #3b82f6;"></div>
+          </div>
+          <button type="button" class="btn-sm btn-outline wealth-action-button" id="addEmergencyGoalBtn">
+            <i data-lucide="plus"></i> Add emergency goal
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. Tax Optimization (Section 80C) -->
+      <div class="wealth-item">
+        <div class="wealth-icon-box" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6;">
+          <i data-lucide="calculator"></i>
+        </div>
+        <div>
+          <div class="wealth-label">Tax Deduction (Sec 80C & NPS)</div>
+          <div class="wealth-value" id="barTaxVal">Add tax-saving entries</div>
+          <div class="wealth-progress-bg">
+            <div class="wealth-progress-fill" id="barTaxProgress" style="width: 0%; background: #8b5cf6;"></div>
+          </div>
+        </div>
+        <button class="btn-sm btn-outline" id="openAddTaxModalBtn" style="margin-left: auto;">
+          <i data-lucide="plus"></i> Log Tax Saving
+        </button>
+      </div>
+    </section>
+
+    <!-- Main Dashboard Grid -->
+    <div class="dashboard-grid">
+
+      <!-- LEFT COLUMN: Metrics, Visual Charts & Accounts -->
+      <div class="dashboard-left">
+        
+        <!-- KPI Row -->
+        <div class="kpi-row">
+          <!-- Total Net Balance -->
+          <div class="kpi-card kpi-balance">
+            <div class="kpi-label">Net Liquid Capital</div>
+            <div class="kpi-value" id="kpiTotalBalance">—</div>
+            <span class="kpi-badge badge-up">Add transactions to see your balance</span>
+          </div>
+
+          <!-- Monthly Spending Burn Rate -->
+          <div class="kpi-card kpi-spending">
+            <div class="kpi-label">Monthly Outflow Burn</div>
+            <div class="kpi-value" id="kpiMonthlySpending">—</div>
+            <span class="kpi-badge badge-up">Based on your recorded expenses</span>
+          </div>
+
+          <!-- Net Savings Rate -->
+          <div class="kpi-card kpi-savings">
+            <div class="kpi-label">Net Savings Rate</div>
+            <div class="kpi-value" id="kpiSavings">—</div>
+            <span class="kpi-badge badge-up" id="kpiSavingsRateBadge">Add transactions to see your savings rate</span>
+          </div>
+        </div>
+
+        <section class="card gamification-card" aria-labelledby="gamificationTitle">
+          <div class="card-header">
+            <div class="card-title">
+              <i data-lucide="trophy" style="color: #f59e0b;"></i>
+              <span id="gamificationTitle">Money habits & budget health</span>
+            </div>
+            <span class="gamification-caption">Savings & debt: last 30 days · Budgets: this month</span>
+          </div>
+          <div class="gamification-highlights">
+            <div class="health-score-panel">
+              <span class="health-score-label">Budget health score</span>
+              <div class="health-score-value"><strong id="budgetHealthScore">0</strong><span>/ 100</span></div>
+              <p id="healthScoreLabel">Building your financial picture</p>
+            </div>
+            <div class="no-spend-panel">
+              <span class="no-spend-icon"><i data-lucide="flame"></i></span>
+              <div>
+                <span class="health-score-label">No-spend day streak</span>
+                <div class="no-spend-value"><strong id="noSpendStreak">0</strong><span> days</span></div>
+                <p>No discretionary purchases logged in a row</p>
+              </div>
+            </div>
+          </div>
+          <div class="health-score-breakdown">
+            <div><span>Savings rate <small>(40%)</small></span><strong id="scoreSavings">—</strong></div>
+            <div><span>Budget adherence <small>(35%)</small></span><strong id="scoreBudget">—</strong></div>
+            <div><span>Debt-to-income <small>(25%)</small></span><strong id="scoreDebt">—</strong></div>
+          </div>
+          <p id="gamificationDataNote" class="gamification-data-note" aria-live="polite"></p>
+        </section>
+
+        <!-- Charts Grid (Donut Category & Monthly Trend) -->
+        <div class="charts-grid">
+          <!-- Category Donut Chart -->
+          <div class="chart-box">
+            <div class="chart-title">Asset & Spending Allocation</div>
+            <div class="chart-canvas-wrap">
+              <canvas id="categoryDonutChart"></canvas>
+            </div>
+            <div class="category-legend-list" id="categoryLegendContainer">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Monthly Trend Area Chart -->
+          <div class="chart-box">
+            <div class="chart-title">Cash Flow & Monthly Burn Trend</div>
+            <div class="chart-canvas-wrap">
+              <canvas id="monthlyTrendChart"></canvas>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 14px; text-align: center;">
+              Monthly trends are calculated from the transactions you record.
+            </div>
+          </div>
+        </div>
+
+        <!-- 50 / 30 / 20 Budget Rule Evaluator -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i data-lucide="scale" style="color: var(--primary);"></i>
+              <span>50 / 30 / 20 Portfolio Health Audit</span>
+            </div>
+            <button class="btn-sm btn-outline" onclick="triggerAdvisorChat('Show 50/30/20 Rule')">
+              <i data-lucide="bot"></i> Ask AI Audit
+            </button>
+          </div>
+
+          <div class="budget-gauge-box">
+            <div class="gauge-row">
+              <div class="gauge-header">
+                <span>🏠 Essential Needs (Bills, Rent, Groceries - Max 50%)</span>
+                <span id="ruleNeedsVal">Add income to calculate</span>
+              </div>
+              <div class="gauge-progress-bg">
+                <div class="gauge-fill" id="ruleNeedsBar" style="width: 0%; background: #3b82f6;"></div>
+              </div>
+            </div>
+
+            <div class="gauge-row">
+              <div class="gauge-header">
+                <span>🛍️ Discretionary Wants (Dining, Shopping, OTT - Max 30%)</span>
+                <span id="ruleWantsVal">Add income to calculate</span>
+              </div>
+              <div class="gauge-progress-bg">
+                <div class="gauge-fill" id="ruleWantsBar" style="width: 0%; background: #ec4899;"></div>
+              </div>
+            </div>
+
+            <div class="gauge-row">
+              <div class="gauge-header">
+                <span>📈 Wealth Accumulation & SIPs (Min 20%)</span>
+                <span id="ruleSavingsVal">Add income to calculate</span>
+              </div>
+              <div class="gauge-progress-bg">
+                <div class="gauge-fill" id="ruleSavingsBar" style="width: 0%; background: #10b981;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <section class="card monthly-budget-card" aria-labelledby="monthlyBudgetTitle">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <i data-lucide="wallet" style="color: var(--success);"></i>
+                <span id="monthlyBudgetTitle">Monthly category budgets</span>
+              </div>
+              <p class="budget-month-label" id="budgetMonthLabel"></p>
+            </div>
+          </div>
+          <div class="budget-summary" aria-live="polite">
+            <div>
+              <span class="budget-summary-label">Spent against budgets</span>
+              <strong id="budgetSpentTotal">₹0</strong>
+            </div>
+            <div>
+              <span class="budget-summary-label">Budget remaining</span>
+              <strong id="budgetRemainingTotal">Set category limits</strong>
+            </div>
+          </div>
+          <form id="monthlyBudgetForm">
+            <div class="monthly-budget-list" id="monthlyBudgetList"></div>
+            <div class="budget-form-footer">
+              <span class="budget-form-hint">Set a monthly limit for any category. Leave at 0 to skip it.</span>
+              <button class="btn-sm btn-primary" type="submit">Save budgets</button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Connected Accounts & Digital Wallets -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i data-lucide="wallet" style="color: var(--info);"></i>
+              <span>Linked Banking & Capital Accounts</span>
+            </div>
+          </div>
+          <div class="accounts-list" id="accountsListContainer">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: AI Insights, Transactions Feed & Savings Goals -->
+      <div class="dashboard-right">
+        
+        <!-- AI Wealth Insights & Money-Saving Recommendations -->
+        <div class="card" style="border-top: 3px solid #8b5cf6;">
+          <div class="card-header">
+            <div class="card-title">
+              <i data-lucide="sparkles" style="color: #8b5cf6;"></i>
+              <span>AI Advisor Insights & Wealth Alerts</span>
+            </div>
+            <button class="btn-sm btn-outline" onclick="triggerAdvisorChat('Give me fresh saving tips')">
+              <i data-lucide="bot"></i> Open AI Chat
+            </button>
+          </div>
+          <div class="insights-feed" id="aiInsightsList">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+
+        <!-- Recent Transactions Feed with Filter -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i data-lucide="receipt" style="color: var(--primary);"></i>
+              <span>Transactions Audit Ledger</span>
+            </div>
+          </div>
+
+          <!-- Interactive Filter & Search Tabs -->
+          <div class="tx-filter-bar">
+            <input type="text" id="txSearchInput" class="tx-search-input" placeholder="Search merchant, title...">
+            <select id="txCategoryFilter" class="tx-filter-select">
+              <option value="all">All Categories</option>
+              <option value="food">Food & Dining</option>
+              <option value="travel">Travel & Commute</option>
+              <option value="shopping">Shopping</option>
+              <option value="bills">Bills & Utilities</option>
+              <option value="health">Health & Wellness</option>
+              <option value="investment">Investments & SIP</option>
+              <option value="debt">Debt Payments</option>
+              <option value="others">Others</option>
+            </select>
+          </div>
+
+          <div class="transactions-feed" id="recentTransactionsList">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+
+        <!-- Savings Goals & Milestones -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i data-lucide="target" style="color: #10b981;"></i>
+              <span>Financial Goals & Capital Milestones</span>
+            </div>
+            <button class="btn-sm btn-outline" id="openAddGoalBtn2">
+              <i data-lucide="plus"></i> New Goal
+            </button>
+          </div>
+          <div class="goals-list" id="goalsListContainer">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+
+        <!-- Subscriptions & Recurring Bills -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i data-lucide="repeat" style="color: #f59e0b;"></i>
+              <span>Recurring Bills & Subscription Leak Auditor</span>
+            </div>
+            <button class="btn-sm btn-outline" onclick="triggerAdvisorChat('Detect unused recurring subscriptions')">
+              <i data-lucide="search"></i> Audit Subs
+            </button>
+          </div>
+          <div class="subs-list" id="subsListContainer">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+
+        <!-- Tax Savings Sec 80C Portfolio -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i data-lucide="file-check-2" style="color: #8b5cf6;"></i>
+              <span>Tax Deductions (Sec 80C & NPS) Portfolio</span>
+            </div>
+            <button class="btn-sm btn-outline" id="openAddTaxModalBtn2">
+              <i data-lucide="plus"></i> Add Entry
+            </button>
+          </div>
+          <div class="tax-savings-list" id="taxSavingsListContainer">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- FLOATING MINI AI CHATBOT WIDGET -->
+  <button id="chatToggleBtn" class="chat-toggle-btn" title="Open AI Financial Advisor">
+    <span class="chat-toggle-orbit" aria-hidden="true">
+      <img class="ai-bot-logo chat-toggle-logo" src="assets/ai-bot-logo.svg" alt="">
+    </span>
+    <span class="chat-badge">AI</span>
+  </button>
+
+  <div id="aiChatbotWidget" class="ai-chatbot-widget minimized">
+    <!-- Chat Header -->
+    <div class="chat-header">
+      <div class="chat-header-info">
+        <div class="chat-bot-avatar">
+          <img class="ai-bot-logo" src="assets/ai-bot-logo.svg" alt="">
+        </div>
+        <div>
+          <h4 class="chat-title">FinBot AI Advisor</h4>
+          <span class="chat-subtitle"><span class="online-dot"></span> Here to chat · Finance help too</span>
+        </div>
+      </div>
+      <button id="chatCloseBtn" class="chat-close-btn" title="Close chat">
+        <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+      </button>
+    </div>
+
+    <!-- Messages Container -->
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-message bot-msg">
+        <div class="bot-avatar"><img class="ai-bot-logo" src="assets/ai-bot-logo.svg" alt=""></div>
+        <div class="msg-bubble">
+          <div class="bot-text">
+            👋 <strong>Hey! I'm your finance advisor.</strong><br><br>
+            You can ask me about your recorded finances, or just have a casual chat. What would you like to talk about?
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Prompt Chips -->
+    <div class="chat-quick-chips" id="chatQuickChips">
+      <!-- Injected via JS -->
+    </div>
+
+    <!-- Chat Input Form -->
+    <div class="chat-input-area">
+      <form id="chatInputForm" class="chat-input-form">
+        <input type="text" id="chatInput" class="chat-input-field" placeholder="Ask a question or just say hello..." autocomplete="off" maxlength="2000">
+        <button type="submit" class="chat-send-btn">
+          <i data-lucide="send" style="width: 16px; height: 16px;"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 1. ADD TRANSACTION MODAL -->
+  <div class="modal-overlay" id="addTxModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Record New Transaction</h3>
+        <button type="button" class="modal-close-btn" id="closeAddTxModalBtn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="addTxForm">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="txType">Type</label>
+              <select id="txType" class="form-control" required>
+                <option value="" selected disabled>Select type</option>
+                <option value="expense">Expense (-)</option>
+                <option value="income">Income (+)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="txAmount">Amount (₹)</label>
+              <input type="number" id="txAmount" class="form-control" required min="1" step="any">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="txTitle">Merchant / Title</label>
+            <input type="text" id="txTitle" class="form-control" placeholder="e.g. Swiggy, Uber, Electricity bill" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="txCategory">Category</label>
+              <select id="txCategory" class="form-control" required>
+                <option value="" selected disabled>Select category</option>
+                <option value="food">Food & Dining</option>
+                <option value="travel">Travel & Commute</option>
+                <option value="shopping">Shopping</option>
+                <option value="bills">Bills & Utilities</option>
+                <option value="entertainment">Entertainment & Subs</option>
+                <option value="health">Health & Wellness</option>
+                <option value="investment">Investments & SIP</option>
+                <option value="debt">Debt Payments</option>
+                <option value="others">Others & Misc</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="txAccount">Payment Account</label>
+              <select id="txAccount" class="form-control" required>
+                <option value="" selected disabled>Select account type</option>
+                <option value="acc_upi">Digital wallet / UPI</option>
+                <option value="acc_bank">Bank account</option>
+                <option value="acc_card">Credit card</option>
+                <option value="acc_cash">Cash</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="txDate">Date</label>
+              <input type="date" id="txDate" class="form-control" required>
+            </div>
+            <div class="form-group" style="display: flex; align-items: flex-end; padding-bottom: 8px;">
+              <label class="form-checkbox-label">
+                <input type="checkbox" id="txRecurring"> Recurring Monthly
+              </label>
+            </div>
+          </div>
+          <div class="form-group discretionary-field" id="discretionaryField">
+            <label class="form-checkbox-label">
+              <input type="checkbox" id="txDiscretionary"> Count as discretionary spending
+            </label>
+            <span class="form-hint">Mark wants and optional purchases. This resets your no-spend streak.</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="txNote">Note (Optional)</label>
+            <input type="text" id="txNote" class="form-control" placeholder="e.g. Dinner with team">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save Transaction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. ADD SAVINGS GOAL MODAL -->
+  <div class="modal-overlay" id="addGoalModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Create Financial Milestone / Goal</h3>
+        <button type="button" class="modal-close-btn" id="closeAddGoalModalBtn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="addGoalForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="goalTitle">Goal Title</label>
+            <input type="text" id="goalTitle" class="form-control" placeholder="e.g. Emergency Fund, Goa Vacation, MacBook" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="goalTarget">Target Amount (₹)</label>
+              <input type="number" id="goalTarget" class="form-control" required min="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="goalCurrent">Current Amount Saved (₹)</label>
+              <input type="number" id="goalCurrent" class="form-control" min="0" step="any">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="goalDeadline">Target Deadline</label>
+            <input type="date" id="goalDeadline" class="form-control" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save Goal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. ADD SUBSCRIPTION MODAL -->
+  <div class="modal-overlay" id="addSubModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Track Recurring Subscription</h3>
+        <button type="button" class="modal-close-btn" id="closeAddSubModalBtn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="addSubForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="subName">Subscription Name</label>
+            <input type="text" id="subName" class="form-control" placeholder="e.g. Netflix, Spotify, Gym, Cloud Storage" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="subAmount">Recurring Amount (₹)</label>
+              <input type="number" id="subAmount" class="form-control" required min="0.01" step="any">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="subFrequency">Billing Frequency</label>
+              <select id="subFrequency" class="form-control" required>
+                <option value="" selected disabled>Select frequency</option>
+                <option value="Monthly">Monthly</option>
+                <option value="Yearly">Yearly</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="subCategory">Category</label>
+            <select id="subCategory" class="form-control" required>
+              <option value="" selected disabled>Select category</option>
+              <option value="bills">Bills & Utilities</option>
+              <option value="entertainment">Entertainment & Subscriptions</option>
+              <option value="health">Health & Wellness</option>
+              <option value="others">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="subUsageRate">Estimated Usage Rate</label>
+            <select id="subUsageRate" class="form-control" required>
+              <option value="" selected disabled>Select usage</option>
+              <option value="High">High (Daily / Frequent)</option>
+              <option value="Medium">Medium (Weekly)</option>
+              <option value="Low / Unused">Low / Unused (Leak Risk)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="subNextDue">Next Billing Date</label>
+            <input type="date" id="subNextDue" class="form-control" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Add Subscription</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. ADD TAX SAVING MODAL -->
+  <div class="modal-overlay" id="addTaxModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Log Tax Deduction (Sec 80C / NPS)</h3>
+        <button type="button" class="modal-close-btn" id="closeAddTaxModalBtn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="addTaxForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="taxName">Investment / Deduction Name</label>
+            <input type="text" id="taxName" class="form-control" placeholder="e.g. Mirae ELSS Mutual Fund, PPF, Term Policy" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="taxAmount">Invested Amount (₹)</label>
+              <input type="number" id="taxAmount" class="form-control" required min="0.01" step="any">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="taxCategory">Tax Section</label>
+              <select id="taxCategory" class="form-control" required>
+                <option value="" selected disabled>Select tax section</option>
+                <option value="Section 80C">Section 80C (ELSS, EPF, PPF, LIC)</option>
+                <option value="Section 80CCD(1B)">Section 80CCD(1B) (NPS - Extra ₹50k)</option>
+                <option value="Section 80D">Section 80D (Health Insurance)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save Deduction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 5. EXECUTIVE FINANCIAL REPORT MODAL -->
+  <div class="modal-overlay" id="reportModal">
+    <div class="modal-card" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Executive Financial Audit & Health Report</h3>
+        <button type="button" class="modal-close-btn" id="closeReportModalBtn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body" id="reportModalBody">
+        <!-- Rendered via JS -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="printReportBtn"><i data-lucide="printer"></i> Print Statement</button>
+        <button type="button" class="btn btn-primary" id="closeReportBtn2">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="paymentRequestModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Request a payment</h3>
+        <button class="modal-close-btn" id="closePaymentRequestBtn" type="button" aria-label="Close">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="paymentRequestForm">
+        <div class="modal-body">
+          <p class="payment-request-intro">Email someone a payment request. This does not transfer money or confirm that a payment was made.</p>
+          <p class="auth-error" id="paymentRequestError" role="alert" aria-live="polite"></p>
+          <div class="form-group">
+            <label class="form-label" for="paymentRecipientName">Their name</label>
+            <input class="form-control" id="paymentRecipientName" maxlength="100" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="paymentRecipientEmail">Their email</label>
+            <input class="form-control" id="paymentRecipientEmail" type="email" maxlength="254" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="paymentAmount">Amount (₹)</label>
+            <input class="form-control" id="paymentAmount" type="number" min="0.01" step="0.01" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="paymentNote">Note (optional)</label>
+            <input class="form-control" id="paymentNote" maxlength="500" placeholder="What is this payment for?">
+          </div>
+          <h4 class="payment-history-title">Recent requests</h4>
+          <div class="payment-history" id="paymentRequestHistory" aria-live="polite">No requests yet.</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="sendPaymentRequestBtn" type="submit"><i data-lucide="send"></i> Email request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Application Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/ai-advisor.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>

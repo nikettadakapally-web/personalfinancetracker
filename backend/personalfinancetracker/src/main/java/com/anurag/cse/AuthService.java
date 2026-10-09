@@ -3,6 +3,7 @@ package com.anurag.cse;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
 import java.util.Base64;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
@@ -23,7 +24,7 @@ public class AuthService {
     }
 
     public AppUser register(String name, String email, String password) {
-        String normalizedEmail = email.trim().toLowerCase();
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
         if (users.existsByEmailIgnoreCase(normalizedEmail)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "An account with this email already exists.");
         }

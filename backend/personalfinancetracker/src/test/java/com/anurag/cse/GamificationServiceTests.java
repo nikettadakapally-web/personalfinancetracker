@@ -59,6 +59,21 @@ class GamificationServiceTests {
         assertEquals(0, result.get("noSpendStreak"));
     }
 
+    @Test
+    void completedGoalsDoNotReceiveEstimatedMonthlyContributions() {
+        SavingGoal completed = new SavingGoal("Emergency fund", 1_000.0, 1_000.0, null, "savings");
+        SavingGoal active = new SavingGoal("Travel", 2_000.0, 0.0, null, "travel");
+
+        Map<String, Object> result = service.calculate(List.of(
+                expense("Salary", 1_000, "income", "income", today, null)), List.of(),
+                List.of(completed, active), today);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> milestones = (List<Map<String, Object>>) result.get("goals");
+        assertEquals(0.0, milestones.get(0).get("monthlyContribution"));
+        assertEquals(1_000.0, milestones.get(1).get("monthlyContribution"));
+    }
+
     private Expense expense(String title, double amount, String type, String category,
                             LocalDate date, Boolean discretionary) {
         Expense expense = new Expense(title, amount, category, type, null, date, null);
